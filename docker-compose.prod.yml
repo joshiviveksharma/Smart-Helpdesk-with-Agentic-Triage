@@ -1,0 +1,50 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secure_password
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - helpdesk-network
+  api:
+    build: 
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      MONGO_URI: mongodb://admin:secure_password@mongo:27017/helpdesk?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      AUTO_CLOSE_ENABLED: 'true'
+      CONFIDENCE_THRESHOLD: '0.78'
+      STUB_MODE: 'true'
+    ports:
+      - '8080:8080'
+    depends_on:
+      - mongo
+    restart: unless-stopped
+    networks:
+      - helpdesk-network
+  client:
+    build: 
+      context: ./client
+      dockerfile: Dockerfile.prod
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - '80:80'
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - helpdesk-network
+
+volumes:
+  mongo-data:
+
+networks:
+  helpdesk-network:
+    driver: bridge
